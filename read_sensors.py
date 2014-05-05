@@ -18,17 +18,17 @@ def motion_sensor(pin):
 def shift_out(data_pin, clock_pin, value, lsb_first=True, bits=8, delay_micros=0):
     data = []
 
-    if type(data) == type(1):
+    if type(value) == type(1):
         data = struct.pack('i', value)
 
-    elif type(data) == type('a'):
+    elif type(value) == type('a'):
         data = [value]
 
-    elif type(data) == type("a"):
+    elif type(value) == type("a"):
         data = value
 
     else:
-        raise "shift_out unsupported type: type(value) => '%s'" % type(value)
+        raise Exception("shift_out unsupported type: type(value) => %s" % type(value))
 
     for i in data:
         shift_out_byte(data_pin, clock_pin, i, lsb_first, bits, delay_micros)
@@ -37,21 +37,13 @@ def shift_out(data_pin, clock_pin, value, lsb_first=True, bits=8, delay_micros=0
 def shift_out_byte(data_pin, clock_pin, value, lsb_first=True, bits=8, delay_micros=0):
     for i in xrange(0, bits):
         if lsb_first:
-            GPIO.output(data_pin, !!(value & (1 << i)))
+            GPIO.output(data_pin, bool(value & (1 << i)))
         else:
-            GPIO.output(data_pin, !!(value & (1 << ((bits - 1 - i )))))
+            GPIO.output(data_pin, bool(value & (1 << ((bits - 1 - i )))))
 
         GPIO.output(clock_pin, GPIO.HIGH)
         time.usleep(delay_micros)
         GPIO.output(clock_pin, GPIO.LOW)
-
-    size = sys.getsizeof(value)
-    print size
-    data = ctypes.create_string_buffer(size)
-    struct.pack_into(">i", data, value, 0x12345678)
-
-    for b in struct.pack("!ih",value):
-        print hex(ord(b))
 
 
 def sht_send_command(data_pin, clock_pin, command):
@@ -90,4 +82,4 @@ def main():
 
 # GPIO.cleanup()
 
-shift_out(1, 7)
+shift_out(1, 1, 7)
