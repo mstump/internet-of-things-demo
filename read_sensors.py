@@ -3,35 +3,40 @@
 import time, sys, ctypes, struct, math, smbus
 import RPi.GPIO as GPIO
 
-SHT_DATA_PIN      = 24
-SHT_CLOCK_PIN     = 23
-MOTION_SENSOR_PIN = 4
-LED_PIN           = 18
-BMP_I2C_BUS       = 0
-BMP_I2C_ADDRESS   = 0x77
-BMP_I2C_CTRL      = 0xF4
-BMP_I2C_TEMP_CMD  = 0x2E
-BMP_I2C_TEMP_DATA = 0xF6
-BMP_IC2_CAL_AC1           = 0xAA  # R   Calibration data (16 bits)
-BMP_IC2_CAL_AC2           = 0xAC  # R   Calibration data (16 bits)
-BMP_IC2_CAL_AC3           = 0xAE  # R   Calibration data (16 bits)
-BMP_IC2_CAL_AC4           = 0xB0  # R   Calibration data (16 bits)
-BMP_IC2_CAL_AC5           = 0xB2  # R   Calibration data (16 bits)
-BMP_IC2_CAL_AC6           = 0xB4  # R   Calibration data (16 bits)
-BMP_IC2_CAL_B1            = 0xB6  # R   Calibration data (16 bits)
-BMP_IC2_CAL_B2            = 0xB8  # R   Calibration data (16 bits)
-BMP_IC2_CAL_MB            = 0xBA  # R   Calibration data (16 bits)
-BMP_IC2_CAL_MC            = 0xBC  # R   Calibration data (16 bits)
-BMP_IC2_CAL_MD            = 0xBE  # R   Calibration data (16 bits)
-
-# BMP oversampling setting
-# 0               = ultra low power
-# 1               = standard
-# 2               = high
-# 3               = ultra high resolution
-BMP_RESOLUTION    = 3
+SHT_DATA_PIN          = 24
+SHT_CLOCK_PIN         = 23
+MOTION_SENSOR_PIN     = 4
+LED_PIN               = 18
+# constants for addressing the bmp085/150 device
+BMP_I2C_BUS           = 0
+BMP_I2C_ADDRESS       = 0x77
+# BMP calibration data
+BMP_IC2_CAL_AC1       = 0xAA
+BMP_IC2_CAL_AC2       = 0xAC
+BMP_IC2_CAL_AC3       = 0xAE
+BMP_IC2_CAL_AC4       = 0xB0
+BMP_IC2_CAL_AC5       = 0xB2
+BMP_IC2_CAL_AC6       = 0xB4
+BMP_IC2_CAL_B1        = 0xB6
+BMP_IC2_CAL_B2        = 0xB8
+BMP_IC2_CAL_MB        = 0xBA
+BMP_IC2_CAL_MC        = 0xBC
+BMP_IC2_CAL_MD        = 0xBE
+# the commands to BMP read sensor data
+BMP_I2C_CTRL          = 0xF4
+BMP_I2C_TEMP_CMD      = 0x2E
+BMP_I2C_TEMP_DATA     = 0xF6
+BMP_I2C_TEMP_CMD      = 0x2E
+BMP_I2C_PRESSURE_CMD  = 0x34
+BMP_I2C_PRESSURE_DATA = 0xF6
+# BMP sampling setting
+# 0                   = ultra low power
+# 1                   = standard
+# 2                   = high
+# 3                   = ultra high resolution
+BMP_RESOLUTION        = 3
 # delays for oversampling settings 0, 1, 2 and 3
-BMP_DELAYS        = [5, 8, 14, 26]
+BMP_DELAYS            = [5, 8, 14, 26]
 
 
 def setup():
@@ -199,22 +204,54 @@ def ic2_read_u16(bus, address, register):
     lo = bus.read_byte_data(address, register + 1)
     return (hi << 8) + lo
 
+def ic2_read_s8(bus, address, register):
+    result = bus.read_byte_data(address, register)
+    if result > 127:
+        result -= 256
+    return result
+
+def ic2_read_s16(bus, address, register):
+    hi = ic2_read_s8(bus, address, register)
+    lo = bus.read_byte_data(address, register + 1)
+    return (hi << 8) + lo
+
 
 def bmp_read_calibration_data(bus):
     "Reads the calibration data from the IC"
     data        = {}
-    data["AC1"] = bus.read_word_data(BMP_I2C_ADDRESS, BMP_IC2_CAL_AC1)   # INT16
-    data["AC2"] = bus.read_word_data(BMP_I2C_ADDRESS, BMP_IC2_CAL_AC2)   # INT16
-    data["AC3"] = bus.read_word_data(BMP_I2C_ADDRESS, BMP_IC2_CAL_AC3)   # INT16
-    data["AC4"] = ic2_read_u16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_AC4)    # UINT16
-    data["AC5"] = ic2_read_u16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_AC5)    # UINT16
-    data["AC6"] = ic2_read_u16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_AC6)    # UINT16
-    data["B1"]  = bus.read_word_data(BMP_I2C_ADDRESS, BMP_IC2_CAL_B1)    # INT16
-    data["B2"]  = bus.read_word_data(BMP_I2C_ADDRESS, BMP_IC2_CAL_B2)    # INT16
-    data["MB"]  = bus.read_word_data(BMP_I2C_ADDRESS, BMP_IC2_CAL_MB)    # INT16
-    data["MC"]  = bus.read_word_data(BMP_I2C_ADDRESS, BMP_IC2_CAL_MC)    # INT16
-    data["MD"]  = bus.read_word_data(BMP_I2C_ADDRESS, BMP_IC2_CAL_MD)    # INT16
+    data["AC1"] = ic2_read_s16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_AC1) # INT16
+    data["AC2"] = ic2_read_s16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_AC2) # INT16
+    data["AC3"] = ic2_read_s16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_AC3) # INT16
+    data["AC4"] = ic2_read_u16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_AC4) # UINT16
+    data["AC5"] = ic2_read_u16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_AC5) # UINT16
+    data["AC6"] = ic2_read_u16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_AC6) # UINT16
+    data["B1"]  = ic2_read_s16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_B1)  # INT16
+    data["B2"]  = ic2_read_s16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_B2)  # INT16
+    data["MB"]  = ic2_read_s16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_MB)  # INT16
+    data["MC"]  = ic2_read_s16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_MC)  # INT16
+    data["MD"]  = ic2_read_s16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_MD)  # INT16
     return data
+
+
+def bmp_canned_calibration_data():
+    data = {}
+    data["AC1"] = 408
+    data["AC2"] = -72
+    data["AC3"] = -14383
+    data["AC4"] = 32741
+    data["AC5"] = 32757
+    data["AC6"] = 23153
+    data["B1"]  = 6190
+    data["B2"]  = 4
+    data["MB"]  = -32768;
+    data["MC"]  = -8711
+    data["MD"]  = 2868
+    return data
+
+
+def bmp_print_calibration_data(data):
+    for key, value in data.items():
+        print "%s => %s" % (repr(key), repr(value))
 
 
 def bmp_read_raw_temp(bus):
@@ -224,12 +261,73 @@ def bmp_read_raw_temp(bus):
     return raw_temp
 
 
+def bmp_read_raw_pressure(bus):
+    bus.write_byte_data(BMP_I2C_ADDRESS, BMP_I2C_CTRL, BMP_I2C_PRESSURE_CMD + (BMP_RESOLUTION << 6))
+
+    time.sleep(BMP_DELAYS[BMP_RESOLUTION] / 1000.0)
+
+    msb  = bus.read_byte_data(BMP_I2C_ADDRESS, BMP_I2C_PRESSURE_DATA)
+    lsb  = bus.read_byte_data(BMP_I2C_ADDRESS, BMP_I2C_PRESSURE_DATA + 1)
+    xlsb = bus.read_byte_data(BMP_I2C_ADDRESS, BMP_I2C_PRESSURE_DATA + 2)
+    raw  = ((msb << 16) + (lsb << 8) + xlsb) >> (8 - BMP_RESOLUTION)
+    return raw
+
+
 def bmp_adjust_temp(cal_data, UT):
-    X1 = ((UT - cal_data["AC6"]) * cal_data["AC5"]) >> 15
-    X2 = (cal_data["MC"] << 11) / (X1 + cal_data["MD"])
-    B5 = X1 + X2
-    temp = ((B5 + 8) >> 4) / 10.0
-    return temp
+    AC5 = cal_data["AC5"]
+    AC6 = cal_data["AC6"]
+    MC  = cal_data["MC"]
+    MD  = cal_data["MD"]
+
+    X1   = (UT - AC6) * AC5 >> 15
+    X2   = (MC << 11) / (X1 + MD)
+    B5   = X1 + X2
+    temp = (B5 + 8) >> 4
+    return B5, temp
+
+
+def bmp_adjust_pressure(cal_data, B5, UP):
+    AC1 = cal_data["AC1"]
+    AC2 = cal_data["AC2"]
+    AC3 = cal_data["AC3"]
+    AC4 = cal_data["AC4"]
+    B1  = cal_data["B1"]
+    B2  = cal_data["B2"]
+
+    B6  = B5 - 4000
+    X1  = (B2 * (B6 * B6) >> 12) >> 11
+    X2  = (AC2 * B6) >> 11
+    X3  = X1 + X2
+    B3  = (((AC1 * 4 + X3) << BMP_RESOLUTION) + 2) / 4
+    X1  = (AC3 * B6) >> 13
+    X2  = (B1 * ((B6 * B6) >> 12)) >> 16
+    X3  = ((X1 + X2) + 2) >> 2
+    B4  = (AC4 * (X3 + 32768)) >> 15
+    B7  = (UP - B3) * (50000 >> BMP_RESOLUTION)
+
+    if (B7 < 0x80000000):
+      p = (B7 * 2) / B4
+    else:
+      p = (B7 / B4) * 2
+
+    X1 = (p >> 8) * (p >> 8)
+    X1 = (X1 * 3038) >> 16
+    X2 = (-7357 * p) >> 16
+
+    p = p + ((X1 + X2 + 3791) >> 2)
+    return p
+
+
+def get_altitude(p, sea_level=101325):
+    return 44330.0 * (1.0 - pow(float(p) / sea_level, 0.1903))
+
+
+def celsius_to_fahrenheit(x):
+    return (x * (9.0 / 5.0)) + 32
+
+
+def pascals_to_inches_mercury(x):
+    return x * 2.96e-4
 
 
 def main():
@@ -239,15 +337,23 @@ def main():
         bmp_cal_data = bmp_read_calibration_data(bus)
 
         while True:
-            motion       = motion_sensor(MOTION_SENSOR_PIN);
-            temp         = sht_get_temp(SHT_DATA_PIN, SHT_CLOCK_PIN)
+            motion           = motion_sensor(MOTION_SENSOR_PIN);
+            temp             = sht_get_temp(SHT_DATA_PIN, SHT_CLOCK_PIN)
             time.sleep(1)
-            humidity     = sht_get_humidity(SHT_DATA_PIN, SHT_CLOCK_PIN, temp)
-            dew_point    = calc_dew_point(temp, humidity)
-            bmp_raw_temp = bmp_read_raw_temp(bus)
-            bmp_temp     = bmp_adjust_temp(bmp_cal_data, bmp_raw_temp)
+            humidity         = sht_get_humidity(SHT_DATA_PIN, SHT_CLOCK_PIN, temp)
+            dew_point        = calc_dew_point(temp, humidity)
+            bmp_raw_temp     = bmp_read_raw_temp(bus)
+            B5, bmp_temp     = bmp_adjust_temp(bmp_cal_data, bmp_raw_temp)
+            bmp_raw_pressure = bmp_read_raw_pressure(bus)
+            bmp_pressure     = bmp_adjust_pressure(bmp_cal_data, B5, bmp_raw_pressure)
 
-            sys.stdout.write("motion: %s | temp: %06.2f°C | relative humidity: %06.2f | dew point: %06.2f°C | bmp temp: %06.2f°C\r" % (motion, temp, humidity, dew_point, bmp_temp))
+            sys.stdout.write("motion: %s | temp: %06.2f°F | relative humidity: %06.2f | dew point: %06.2f°F | pressure: %06.2f inHg | altitude: %06.2fm\r" %
+                             (motion,
+                              celsius_to_fahrenheit(temp),
+                              humidity,
+                              celsius_to_fahrenheit(dew_point),
+                              pascals_to_inches_mercury(bmp_pressure),
+                              get_altitude(bmp_pressure)))
             sys.stdout.flush()
             time.sleep(1)
 
