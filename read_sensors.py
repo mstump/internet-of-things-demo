@@ -1,12 +1,37 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import time, sys, ctypes, struct, math
+import time, sys, ctypes, struct, math, smbus
 import RPi.GPIO as GPIO
 
 SHT_DATA_PIN      = 24
 SHT_CLOCK_PIN     = 23
 MOTION_SENSOR_PIN = 4
 LED_PIN           = 18
+BMP_I2C_BUS       = 0
+BMP_I2C_ADDRESS   = 0x77
+BMP_I2C_CTRL      = 0xF4
+BMP_I2C_TEMP_CMD  = 0x2E
+BMP_I2C_TEMP_DATA = 0xF6
+BMP_IC2_CAL_AC1           = 0xAA  # R   Calibration data (16 bits)
+BMP_IC2_CAL_AC2           = 0xAC  # R   Calibration data (16 bits)
+BMP_IC2_CAL_AC3           = 0xAE  # R   Calibration data (16 bits)
+BMP_IC2_CAL_AC4           = 0xB0  # R   Calibration data (16 bits)
+BMP_IC2_CAL_AC5           = 0xB2  # R   Calibration data (16 bits)
+BMP_IC2_CAL_AC6           = 0xB4  # R   Calibration data (16 bits)
+BMP_IC2_CAL_B1            = 0xB6  # R   Calibration data (16 bits)
+BMP_IC2_CAL_B2            = 0xB8  # R   Calibration data (16 bits)
+BMP_IC2_CAL_MB            = 0xBA  # R   Calibration data (16 bits)
+BMP_IC2_CAL_MC            = 0xBC  # R   Calibration data (16 bits)
+BMP_IC2_CAL_MD            = 0xBE  # R   Calibration data (16 bits)
+
+# BMP oversampling setting
+# 0               = ultra low power
+# 1               = standard
+# 2               = high
+# 3               = ultra high resolution
+BMP_RESOLUTION    = 3
+# delays for oversampling settings 0, 1, 2 and 3
+BMP_DELAYS        = [5, 8, 14, 26]
 
 
 def setup():
@@ -169,18 +194,60 @@ def calc_dew_point(temp, relative_humidity):
     return DP
 
 
+def ic2_read_u16(bus, address, register):
+    hi = bus.read_byte_data(address, register)
+    lo = bus.read_byte_data(address, register + 1)
+    return (hi << 8) + lo
+
+
+def bmp_read_calibration_data(bus):
+    "Reads the calibration data from the IC"
+    data        = {}
+    data["AC1"] = bus.read_word_data(BMP_I2C_ADDRESS, BMP_IC2_CAL_AC1)   # INT16
+    data["AC2"] = bus.read_word_data(BMP_I2C_ADDRESS, BMP_IC2_CAL_AC2)   # INT16
+    data["AC3"] = bus.read_word_data(BMP_I2C_ADDRESS, BMP_IC2_CAL_AC3)   # INT16
+    data["AC4"] = ic2_read_u16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_AC4)    # UINT16
+    data["AC5"] = ic2_read_u16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_AC5)    # UINT16
+    data["AC6"] = ic2_read_u16(bus, BMP_I2C_ADDRESS, BMP_IC2_CAL_AC6)    # UINT16
+    data["B1"]  = bus.read_word_data(BMP_I2C_ADDRESS, BMP_IC2_CAL_B1)    # INT16
+    data["B2"]  = bus.read_word_data(BMP_I2C_ADDRESS, BMP_IC2_CAL_B2)    # INT16
+    data["MB"]  = bus.read_word_data(BMP_I2C_ADDRESS, BMP_IC2_CAL_MB)    # INT16
+    data["MC"]  = bus.read_word_data(BMP_I2C_ADDRESS, BMP_IC2_CAL_MC)    # INT16
+    data["MD"]  = bus.read_word_data(BMP_I2C_ADDRESS, BMP_IC2_CAL_MD)    # INT16
+    return data
+
+
+def bmp_read_raw_temp(bus):
+    bus.write_byte_data(BMP_I2C_ADDRESS, BMP_I2C_CTRL, BMP_I2C_TEMP_CMD)
+    time.sleep(0.005) # sleep 5ms
+    raw_temp = ic2_read_u16(bus, BMP_I2C_ADDRESS, BMP_I2C_TEMP_DATA)
+    return raw_temp
+
+
+def bmp_adjust_temp(cal_data, UT):
+    X1 = ((UT - cal_data["AC6"]) * cal_data["AC5"]) >> 15
+    X2 = (cal_data["MC"] << 11) / (X1 + cal_data["MD"])
+    B5 = X1 + X2
+    temp = ((B5 + 8) >> 4) / 10.0
+    return temp
+
+
 def main():
     try:
         setup()
+        bus = smbus.SMBus(1) # the i2c bus
+        bmp_cal_data = bmp_read_calibration_data(bus)
 
         while True:
-            motion    = motion_sensor(MOTION_SENSOR_PIN);
-            temp      = sht_get_temp(SHT_DATA_PIN, SHT_CLOCK_PIN)
+            motion       = motion_sensor(MOTION_SENSOR_PIN);
+            temp         = sht_get_temp(SHT_DATA_PIN, SHT_CLOCK_PIN)
             time.sleep(1)
-            humidity  = sht_get_humidity(SHT_DATA_PIN, SHT_CLOCK_PIN, temp)
-            dew_point = calc_dew_point(temp, humidity)
+            humidity     = sht_get_humidity(SHT_DATA_PIN, SHT_CLOCK_PIN, temp)
+            dew_point    = calc_dew_point(temp, humidity)
+            bmp_raw_temp = bmp_read_raw_temp(bus)
+            bmp_temp     = bmp_adjust_temp(bmp_cal_data, bmp_raw_temp)
 
-            sys.stdout.write("motion: %s | temp: %06.2f°C | relative humidity: %06.2f | dew point: %06.2f°C\r" % (motion, temp, humidity, 13.9499999))
+            sys.stdout.write("motion: %s | temp: %06.2f°C | relative humidity: %06.2f | dew point: %06.2f°C | bmp temp: %06.2f°C\r" % (motion, temp, humidity, dew_point, bmp_temp))
             sys.stdout.flush()
             time.sleep(1)
 
