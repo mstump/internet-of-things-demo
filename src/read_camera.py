@@ -67,7 +67,7 @@ if __name__ == '__main__':
     parser = OptionParser()
     parser.add_option("-c", "--cascade", action="store", dest="cascade", type="str",
                       help="Haar cascade file, default %default",
-                      default="../data/haarcascade_frontalface_alt.xml")
+                      default="opencv_cascades/lbpcascade_frontalface.xml")
 
     parser.add_option("-z", "--cap", action="store", dest="cap", type="int",
                       help="Camera index, default %default",
@@ -78,41 +78,39 @@ if __name__ == '__main__':
     cap        = cv2.VideoCapture(0)
     cap.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH,960)
     cap.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT,720)
-    # cap.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 600)
-    # cap.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 800)
-    # cap.set(cv2.cv.CV_CAP_PROP_FPS, 30)
-
-    # cap.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 1024)
-    # cap.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 768)
-    # time.sleep(2)
-    # cap.set(15, -8.0)
     screen, size = init_display()
 
-    i = 0
+
     while True:
         if not cap.isOpened():
             pass
 
         rval, frame = cap.read()
+        minisize = (frame.shape[1] / DOWNSCALE, frame.shape[0] / DOWNSCALE)
+        miniframe = cv2.cvtColor(cv2.resize(frame, minisize), cv.CV_RGB2GRAY)
+        miniframe = cv2.equalizeHist(miniframe)
 
-        if i % 5 == 0:
-            minisize = (frame.shape[1] / DOWNSCALE, frame.shape[0] / DOWNSCALE)
-            miniframe = cv2.resize(frame, minisize)
-            t = cv.GetTickCount()
-            faces = classifier.detectMultiScale(miniframe)
-            t = cv.GetTickCount() - t
-            for f in faces:
-                x, y, w, h = [ v * DOWNSCALE for v in f ]
-                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255))
+        t = cv.GetTickCount()
+        faces = classifier.detectMultiScale(miniframe,
+                                            scaleFactor=1.3,
+                                            minNeighbors=4,
+                                            minSize=(20, 20),
+                                            flags=cv.CV_HAAR_SCALE_IMAGE)
+        t = cv.GetTickCount() - t
+        for f in faces:
+            x, y, w, h = [ v * DOWNSCALE for v in f ]
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255))
 
-            print "detection time = %gms" % (t/(cv.GetTickFrequency()*1000.))
+        faces_str = "faces: %d" % len(faces)
+        time_str  = "detection time: %04.03fms" % (t/(cv.GetTickFrequency()*1000.))
+        sys.stdout.write("%s | %s\r" % (faces_str, time_str))
+        sys.stdout.flush()
 
         font = pygame.font.Font(None, 40)
-        text_surface = font.render('Faces: %d' % len(faces), True, (255, 255, 255))  # White text
-        # Blit the text at 10, 0
-        screen.blit(text_surface, (0, 492))
-
-        print frame.shape[0:2]
-        screen.blit(pygame.image.frombuffer(frame.tostring(), frame.shape[1::-1], "RGB"), (500, 500))
+        faces_surface = font.render(faces_str, True, (255, 255, 255))  # White text
+        time_surface = font.render(time_str, True, (255, 255, 255))  # White text
+        screen.fill((0,0,0))
+        screen.blit(faces_surface, (970, 0))
+        screen.blit(time_surface, (970, 50))
+        screen.blit(pygame.image.frombuffer(frame.tostring(), frame.shape[1::-1], "RGB"), (0, 0))
         pygame.display.update()
-        i += 1
