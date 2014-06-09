@@ -6239,7 +6239,7 @@ I2C read is 0xC1</text>
 <wire x1="-43.18" y1="76.2" x2="-43.18" y2="-17.78" width="0.2032" layer="97" style="longdash"/>
 <wire x1="-43.18" y1="-17.78" x2="-43.18" y2="-106.68" width="0.2032" layer="97" style="longdash"/>
 <wire x1="-43.18" y1="-17.78" x2="-116.84" y2="-17.78" width="0.2032" layer="97" style="longdash"/>
-<text x="48.26" y="-101.6" size="3.81" layer="94">Matthew Stump</text>
+<text x="53.34" y="-101.6" size="3.81" layer="94">Matthew Stump</text>
 <text x="119.38" y="-101.6" size="2.54" layer="94">1.0</text>
 <rectangle x1="0.0991875" y1="0.000128125" x2="0.100203125" y2="0.00038125" layer="200"/>
 <rectangle x1="0.0991875" y1="0.00038125" x2="0.099440625" y2="0.000634375" layer="200"/>
@@ -7123,6 +7123,10 @@ I2C read is 0xC1</text>
 <wire x1="96.52" y1="-55.88" x2="96.52" y2="-53.34" width="0.1524" layer="91"/>
 <pinref part="U1" gate="G$1" pin="GND"/>
 <wire x1="93.98" y1="-53.34" x2="96.52" y2="-53.34" width="0.1524" layer="91"/>
+<pinref part="U1" gate="G$1" pin="ADDR"/>
+<wire x1="93.98" y1="-48.26" x2="96.52" y2="-48.26" width="0.1524" layer="91"/>
+<wire x1="96.52" y1="-48.26" x2="96.52" y2="-53.34" width="0.1524" layer="91"/>
+<junction x="96.52" y="-53.34"/>
 </segment>
 <segment>
 <pinref part="U3" gate="G$1" pin="GND"/>
@@ -7167,11 +7171,6 @@ I2C read is 0xC1</text>
 <pinref part="U$2" gate="G$1" pin="GND"/>
 </segment>
 <segment>
-<wire x1="-66.04" y1="27.94" x2="-63.5" y2="27.94" width="0.1524" layer="91"/>
-<label x="-63.5" y="27.94" size="0.8128" layer="95" xref="yes"/>
-<pinref part="U$2" gate="G$1" pin="DNC@3"/>
-</segment>
-<segment>
 <pinref part="GND14" gate="1" pin="GND"/>
 <wire x1="30.48" y1="-48.26" x2="30.48" y2="-45.72" width="0.1524" layer="91"/>
 <pinref part="C14" gate="G$1" pin="P$2"/>
@@ -7213,7 +7212,6 @@ I2C read is 0xC1</text>
 <pinref part="R8" gate="G$1" pin="1"/>
 </segment>
 <segment>
-<wire x1="17.78" y1="-81.211928125" x2="17.78" y2="-76.2" width="0.1524" layer="91"/>
 <pinref part="R6" gate="G$1" pin="1"/>
 <pinref part="GND12" gate="1" pin="GND"/>
 <wire x1="17.78" y1="-76.2" x2="17.78" y2="-78.74" width="0.1524" layer="91"/>
@@ -7237,6 +7235,16 @@ I2C read is 0xC1</text>
 <wire x1="10.16" y1="-68.58" x2="7.62" y2="-68.58" width="0.1524" layer="91"/>
 <pinref part="GND13" gate="1" pin="GND"/>
 <wire x1="10.16" y1="-68.58" x2="10.16" y2="-78.74" width="0.1524" layer="91"/>
+</segment>
+<segment>
+<pinref part="U$2" gate="G$1" pin="RXD"/>
+<wire x1="-66.04" y1="33.02" x2="-63.5" y2="33.02" width="0.1524" layer="91"/>
+<label x="-63.5" y="33.02" size="0.8128" layer="95" xref="yes"/>
+</segment>
+<segment>
+<pinref part="U$2" gate="G$1" pin="SPI_MISO"/>
+<wire x1="-106.68" y1="17.78" x2="-104.14" y2="17.78" width="0.1524" layer="91"/>
+<label x="-106.68" y="17.78" size="0.8128" layer="95" rot="R180" xref="yes"/>
 </segment>
 </net>
 <net name="3.3V" class="0">
@@ -7526,13 +7534,6 @@ I2C read is 0xC1</text>
 <pinref part="U$2" gate="G$1" pin="GPIO4"/>
 </segment>
 </net>
-<net name="DSP_DC" class="0">
-<segment>
-<wire x1="-66.04" y1="22.86" x2="-63.5" y2="22.86" width="0.1524" layer="91"/>
-<label x="-63.5" y="22.86" size="0.8128" layer="95" xref="yes"/>
-<pinref part="U$2" gate="G$1" pin="GPIO5"/>
-</segment>
-</net>
 <net name="N$12" class="0">
 <segment>
 <pinref part="LCD2" gate="G$1" pin="VCC"/>
@@ -7585,6 +7586,13 @@ I2C read is 0xC1</text>
 </nets>
 </sheet>
 </sheets>
+<errors>
+<approved hash="204,1,-66.04,-68.58,LCD2,VBREF,,,,"/>
+<approved hash="113,1,62.738,8.11953,JP2,,,,,"/>
+<approved hash="113,1,-7.62,-57.2982,U4,,,,,"/>
+<approved hash="113,1,72.9827,52.2647,JP1,,,,,"/>
+<approved hash="113,1,-59.2455,-70.3368,LCD2,,,,,"/>
+</errors>
 </schematic>
 </drawing>
 <compatibility>
