@@ -52,3 +52,10 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
+# eagle temp files
+*.s#*
+*.b#*
+tmp
+
+# OSX
+.DS_Store
